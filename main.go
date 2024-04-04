@@ -14,10 +14,13 @@ func main () {
 	api := api.NewApiConfig()
 
 	router := http.NewServeMux()
-	router.Handle("/app/*", api.MiddlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(root)))))
-	router.HandleFunc("/healthz", handleReadiness)
-	router.HandleFunc("/metrics", api.GetHits)
-	router.HandleFunc("/reset", api.ResetHits)
+	
+	handleFileSystem := api.MiddlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(root))))
+	
+	router.Handle("GET /app/*", handleFileSystem)
+	router.HandleFunc("GET /api/healthz", api.HandleReadiness)
+	router.HandleFunc("GET /admin/metrics", api.GetHits)
+	router.HandleFunc("GET /api/reset", api.ResetHits)
 
 	corsMux := middlewareCors(router)
 
@@ -25,6 +28,7 @@ func main () {
 
 	s := &http.Server{
 		Addr: ":" + port,
+
 		Handler: corsMux,
 	}
 
@@ -32,8 +36,3 @@ func main () {
 	
 }
 
-func handleReadiness(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-}
