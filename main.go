@@ -21,6 +21,7 @@ func main () {
 	router.HandleFunc("GET /api/healthz", api.HandleReadiness)
 	router.HandleFunc("GET /admin/metrics", api.GetHits)
 	router.HandleFunc("GET /api/reset", api.ResetHits)
+	router.HandleFunc("POST /api/validate_chirp", api.ValidateChirp)
 
 	corsMux := middlewareCors(router)
 
