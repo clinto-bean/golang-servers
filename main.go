@@ -4,36 +4,46 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/clinto-bean/golang-servers/internal/api"
+	"github.com/clinto-bean/golang-servers/internal/database"
 )
 
-func main () {
+type apiConfig struct {
+	fileserverHits int
+	DB             *database.DB
+}
+
+func main() {
 	const root = "./"
 	const port = "8080"
 
-	api := api.NewApiConfig()
+	db, err := database.NewDB("database.json")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	router := http.NewServeMux()
-	
-	handleFileSystem := api.MiddlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(root))))
-	
-	router.Handle("GET /app/*", handleFileSystem)
-	router.HandleFunc("GET /api/healthz", api.HandleReadiness)
-	router.HandleFunc("GET /admin/metrics", api.GetHits)
-	router.HandleFunc("GET /api/reset", api.ResetHits)
-	router.HandleFunc("POST /api/validate_chirp", api.ValidateChirp)
+	apiCfg := apiConfig{
+		fileserverHits: 0,
+		DB:             db,
+	}
 
-	corsMux := middlewareCors(router)
+	mux := http.NewServeMux()
+	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(root))))
+	mux.Handle("/app/*", fsHandler)
 
-	log.Printf("Listening on port %s", port)
+	mux.HandleFunc("GET /api/healthz", apiCfg.handlerReadiness)
+	mux.HandleFunc("GET /api/reset", apiCfg.handlerReset)
+	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsCreate)
+	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirpsRetrieve)
 
-	s := &http.Server{
-		Addr: ":" + port,
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 
+	corsMux := middlewareCors(mux)
+
+	srv := &http.Server{
+		Addr:    ":" + port,
 		Handler: corsMux,
 	}
 
-	log.Fatal(s.ListenAndServe())
-	
+	log.Printf("Server running on port %v", port)
+	log.Fatal(srv.ListenAndServe())
 }
-
