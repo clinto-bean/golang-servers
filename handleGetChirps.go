@@ -1,14 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 )
 
-func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
 	dbChirps, err := cfg.DB.GetChirps()
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't retrieve chirps")
+		fmt.Print("unable to run cfg.DB.GetChirps()")
+		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -25,4 +28,24 @@ func (cfg *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Reque
 	})
 
 	respondWithJSON(w, http.StatusOK, chirps)
+}
+
+func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Request) {
+	chirpID := r.PathValue("chirpID")
+	id, err := strconv.Atoi(chirpID)
+	if err != nil {
+		fmt.Print("unable to convert chirp ID")
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	chirp, err := cfg.DB.GetChirp(id)
+	if err != nil {
+		fmt.Print("unable to get chirp by id")
+		respondWithError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, Chirp{
+				Body: chirp.Body,
+				ID: chirp.ID,
+			})
 }
