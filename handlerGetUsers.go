@@ -34,7 +34,7 @@ func (cfg *apiConfig) handlerGetAllUsers(w http.ResponseWriter, r *http.Request)
 func (cfg *apiConfig) handlerGetSingleUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("userID")
 	id, err := strconv.Atoi(userID)
-	if err != nil {
+	if err != nil && userID != "" {
 		fmt.Print("could not convert user ID")
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}

@@ -39,6 +39,7 @@ func main() {
 	mux.HandleFunc("GET /api/users/{userID}", apiCfg.handlerGetSingleUser)
 	mux.HandleFunc("POST /api/users", apiCfg.handleCreateUsers)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("POST /api/login", apiCfg.handlerUserLogin)
 
 	corsMux := middlewareCors(mux)
 
