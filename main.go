@@ -3,20 +3,30 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
-	"github.com/clinto-bean/golang-servers/internal/database"
+	db "github.com/clinto-bean/golang-servers/internal/database"
+	godotenv "github.com/joho/godotenv"
 )
 
 type apiConfig struct {
 	fileserverHits int
-	DB             *database.DB
+	DB             *db.DB
+	JWTSecret string
+	Expiration int
 }
 
 func main() {
 	const root = "./"
 	const port = "8080"
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	db, err := database.NewDB("database.json")
+	jwtSecret := os.Getenv("JWT_SECRET")
+
+	db, err := db.NewDB("database.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,6 +34,8 @@ func main() {
 	apiCfg := apiConfig{
 		fileserverHits: 0,
 		DB:             db,
+		JWTSecret: jwtSecret,
+		Expiration: 5,
 	}
 
 	mux := http.NewServeMux()
@@ -40,6 +52,7 @@ func main() {
 	mux.HandleFunc("POST /api/users", apiCfg.handleCreateUsers)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	mux.HandleFunc("POST /api/login", apiCfg.handlerUserLogin)
+	mux.HandleFunc("PUT /api/users", apiCfg.handlerUpdateUser)
 
 	corsMux := middlewareCors(mux)
 

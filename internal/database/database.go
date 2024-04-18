@@ -53,8 +53,9 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 		Body: body,
 	}
 	dbStructure.Chirps[id] = chirp
-
+	db.mu.Lock()
 	err = db.writeDB(dbStructure)
+	db.mu.Unlock()
 	if err != nil {
 		log.Print("Could not write db.")
 		return Chirp{}, err
@@ -95,7 +96,12 @@ func (db *DB) createDB() error {
 		Chirps: map[int]Chirp{},
 		Users: map[int]User{},
 	}
-	return db.writeDB(dbStructure)
+
+	db.mu.Lock()
+	err := db.writeDB(dbStructure)
+	db.mu.Unlock()
+
+	return err
 }
 
 func (db *DB) ensureDB() error {
@@ -126,8 +132,6 @@ func (db *DB) loadDB() (DBStructure, error) {
 }
 
 func (db *DB) writeDB(dbStructure DBStructure) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
 
 	dat, err := json.Marshal(dbStructure)
 	if err != nil {
@@ -166,13 +170,47 @@ func (db *DB) CreateUser(email string, password string) (User, error) {
 
 	dbStructure.Users[id] = user
 
+	db.mu.Lock()
 	err = db.writeDB(dbStructure)
+	db.mu.Unlock()
 
 	if err != nil {
 		log.Print("Couldn't write user to db")
 		return User{}, err
 	}
 	
+	return user, nil
+}
+
+func (db *DB) UpdateUser(id int, email string, password string) (User, error) {
+	dbStructure, err := db.loadDB()
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	if err != nil {
+		log.Print("Couldn't load db while updating users")
+		return User{}, err
+	}
+
+	user, ok := dbStructure.Users[id]
+
+	if !ok {
+		return User{}, errors.New("user not found")
+	}
+
+	user.Email = email
+	user.Password = password
+	user.ID = id
+
+	dbStructure.Users[id] = user
+
+	err = db.writeDB(dbStructure)
+	
+
+	if err != nil {
+		return User{}, errors.New("could not write database")
+	}
+
 	return user, nil
 }
 

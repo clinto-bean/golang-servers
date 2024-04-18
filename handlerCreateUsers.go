@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -18,11 +17,13 @@ type User struct {
 	ID int `json:"id"`
 }
 
-func (cfg *apiConfig) handleCreateUsers(w http.ResponseWriter, r *http.Request) {
-	type parameters struct {
+type parameters struct {
 		Email string `json:"email"`
 		Password string `json:"password"`
-	}
+}
+
+func (cfg *apiConfig) handleCreateUsers(w http.ResponseWriter, r *http.Request) {
+	
 
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
@@ -41,6 +42,7 @@ func (cfg *apiConfig) handleCreateUsers(w http.ResponseWriter, r *http.Request) 
 	e, err := validateEmail(email)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	log.Println("Requesting password encryption")
@@ -48,14 +50,17 @@ func (cfg *apiConfig) handleCreateUsers(w http.ResponseWriter, r *http.Request) 
 	p, err := auth.EncryptPassword(password)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	log.Println("Attempting to create user")
+	log.Println("Attempting to create user in database")
 
 	user, err := cfg.DB.CreateUser(e, p)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
+
+	
 
 	respondWithJSON(w, http.StatusCreated, User{
 		Email: user.Email,
@@ -66,7 +71,7 @@ func (cfg *apiConfig) handleCreateUsers(w http.ResponseWriter, r *http.Request) 
 
 func validateEmail(email string) (string, error) {
 	if !strings.Contains(email, "@") {
-		fmt.Println("Invalid email")
+		log.Println("Invalid email")
 		return "", errors.New("please enter a valid email")
 	}
 	log.Println("Email validated")
