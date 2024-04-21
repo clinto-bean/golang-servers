@@ -53,9 +53,11 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 		Body: body,
 	}
 	dbStructure.Chirps[id] = chirp
-	db.mu.Lock()
+
+	db.mu.RLock()
 	err = db.writeDB(dbStructure)
-	db.mu.Unlock()
+	db.mu.RUnlock()
+
 	if err != nil {
 		log.Print("Could not write db.")
 		return Chirp{}, err
@@ -97,9 +99,9 @@ func (db *DB) createDB() error {
 		Users: map[int]User{},
 	}
 
-	db.mu.Lock()
+	db.mu.RLock()
 	err := db.writeDB(dbStructure)
-	db.mu.Unlock()
+	db.mu.RUnlock()
 
 	return err
 }
@@ -113,16 +115,19 @@ func (db *DB) ensureDB() error {
 }
 
 func (db *DB) loadDB() (DBStructure, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
-
 	dbStructure := DBStructure{}
+	
+	db.mu.RLock()
 	dat, err := os.ReadFile(db.path)
+	db.mu.RUnlock()
+
 	if errors.Is(err, os.ErrNotExist) {
 		log.Printf("Could not read file: %v", db.path)
 		return dbStructure, err
 	}
+
 	err = json.Unmarshal(dat, &dbStructure)
+
 	if err != nil {
 		log.Printf("Could not unmarshal data: %v", dat)
 		return dbStructure, err
@@ -170,9 +175,9 @@ func (db *DB) CreateUser(email string, password string) (User, error) {
 
 	dbStructure.Users[id] = user
 
-	db.mu.Lock()
+	db.mu.RLock()
 	err = db.writeDB(dbStructure)
-	db.mu.Unlock()
+	db.mu.RUnlock()
 
 	if err != nil {
 		log.Print("Couldn't write user to db")
@@ -183,9 +188,10 @@ func (db *DB) CreateUser(email string, password string) (User, error) {
 }
 
 func (db *DB) UpdateUser(id int, email string, password string) (User, error) {
+	
+	db.mu.RLock()
 	dbStructure, err := db.loadDB()
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.mu.RUnlock()
 
 	if err != nil {
 		log.Print("Couldn't load db while updating users")

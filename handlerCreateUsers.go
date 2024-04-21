@@ -30,14 +30,12 @@ func (cfg *apiConfig) handleCreateUsers(w http.ResponseWriter, r *http.Request) 
 	err := decoder.Decode(&params)
 	email := params.Email
 	password := params.Password
-	log.Printf("Email: %v, password: %v\n", email, password)
+
 	if err != nil {
 		
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	log.Println("Attempting to validate email")
 
 	e, err := validateEmail(email)
 	if err != nil {
@@ -45,22 +43,17 @@ func (cfg *apiConfig) handleCreateUsers(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	log.Println("Requesting password encryption")
-
 	p, err := auth.EncryptPassword(password)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log.Println("Attempting to create user in database")
-
 	user, err := cfg.DB.CreateUser(e, p)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
 
-	
 
 	respondWithJSON(w, http.StatusCreated, User{
 		Email: user.Email,
@@ -74,6 +67,5 @@ func validateEmail(email string) (string, error) {
 		log.Println("Invalid email")
 		return "", errors.New("please enter a valid email")
 	}
-	log.Println("Email validated")
 	return email, nil
 }

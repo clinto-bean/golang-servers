@@ -33,7 +33,7 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) 
 	userid, err := cfg.validateToken(authorization)
 
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "invalid user id type")
+		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
@@ -80,12 +80,15 @@ func (cfg *apiConfig) validateToken(arg string) (int, error) {
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		issuer := claims["iss"]
+		if issuer != "chirpy-access" {
+			
+			return 0, errors.New("incorrect issuer")
+		}
+
 		if issuer == nil {
 			return 0, errors.New("issuer not found in token")
 		}
-		if issuer != "chirpy" {
-			return 0, errors.New("incorrect issuer")
-		}
+		
 		
 		subject, ok := claims["sub"].(string)
 		if !ok {

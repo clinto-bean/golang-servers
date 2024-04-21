@@ -13,8 +13,6 @@ import (
 
 func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 
-	log.Print("Attempting to log in")
-
 	type parameters struct {
 		Email string `json:"email"`
 		Password string `json:"password"`
@@ -23,7 +21,10 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	type returnParams struct {
+		ID int `json:"id"`
+		Email string `json:"email"`
 		Token string `json:"token"`
+		Refresh string `json:"refresh_token"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -37,12 +38,6 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dbUser, err := cfg.DB.GetUserByEmail(params.Email)
-
-	exp := cfg.Expiration
-
-	if params.ExpiresInSeconds != nil && *params.ExpiresInSeconds < int64(24*time.Hour.Seconds()) {
-		exp = int(*params.ExpiresInSeconds)
-	}
 	
 	if err != nil {
 		log.Print("User not found")
@@ -59,31 +54,45 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 	
 	}
 
-	log.Printf("Successfully logged in as %v!\n", params.Email)
+	now := time.Now()
 
-	log.Println("Attempting to create user token")
-
-	token, err := cfg.generateUserToken(dbUser.ID, exp)
+	token, err := cfg.generateUserToken(dbUser.ID, now.Add(time.Hour), "chirpy-access")
 
 	if err != nil {
-		log.Print("Unable to generate user token")
+		log.Print("Unable to generate access token")
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Authorization", "Bearer "+token)
+	refresh, err := cfg.generateUserToken(dbUser.ID, now.Add(time.Hour * 24 * 60), "chirpy-refresh")
 
+	if err != nil {
+		log.Print("Unable to generate refresh token")
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	log.Println()
+	log.Println("{")
+	log.Printf("token: %v\n", token)
+	log.Printf("refresh: %v\n", refresh)
+	log.Println("}")
+	
 	respondWithJSON(w, http.StatusOK, returnParams{
+		ID: dbUser.ID,
+		Email: dbUser.Email,
 		Token: token,
+		Refresh: refresh,
 	})
 }
 
-func (cfg *apiConfig) generateUserToken(userid int, expiration int) (string, error) {
+
+func (cfg *apiConfig) generateUserToken(userid int, expiration time.Time, issuer string) (string, error) {
 
 	now := jwt.NewNumericDate(time.Now())
-	exp := jwt.NewNumericDate(time.Now().Add(time.Second * time.Duration(expiration)))
+	exp := jwt.NewNumericDate(expiration)
 	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Issuer: "chirpy",
+		Issuer: issuer,
 		IssuedAt: now,
 		ExpiresAt: exp,
 		Subject: strconv.Itoa(userid),
