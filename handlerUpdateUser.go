@@ -30,7 +30,7 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) 
 
 	authorization := r.Header.Get("Authorization")
 
-	userid, err := cfg.validateToken(authorization)
+	userid, err := cfg.validateToken(authorization, "chirpy-access")
 
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, err.Error())
@@ -59,7 +59,7 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) 
 
 }
 
-func (cfg *apiConfig) validateToken(arg string) (int, error) {
+func (cfg *apiConfig) validateToken(arg string, issuerName string) (int, error) {
 
 	const prefix = "Bearer "
 	if !strings.HasPrefix(arg, prefix) {
@@ -80,7 +80,7 @@ func (cfg *apiConfig) validateToken(arg string) (int, error) {
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		issuer := claims["iss"]
-		if issuer != "chirpy-access" {
+		if issuer != issuerName {
 			
 			return 0, errors.New("incorrect issuer")
 		}

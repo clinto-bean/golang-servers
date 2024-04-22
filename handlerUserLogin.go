@@ -13,6 +13,10 @@ import (
 
 func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 
+
+	bear := r.Header.Get("Authorization")
+	log.Printf("\n%v\n", bear)
+
 	type parameters struct {
 		Email string `json:"email"`
 		Password string `json:"password"`
@@ -71,12 +75,6 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	log.Println()
-	log.Println("{")
-	log.Printf("token: %v\n", token)
-	log.Printf("refresh: %v\n", refresh)
-	log.Println("}")
 	
 	respondWithJSON(w, http.StatusOK, returnParams{
 		ID: dbUser.ID,
