@@ -4,18 +4,14 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/clinto-bean/golang-servers/internal/auth"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 
-
-	bear := r.Header.Get("Authorization")
-	log.Printf("\n%v\n", bear)
+	log.Println("API: Logging in")
 
 	type parameters struct {
 		Email string `json:"email"`
@@ -35,11 +31,15 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 	params := parameters{}
 	err := decoder.Decode(&params)
 
+	log.Println("API: Decoding login parameters")
+
 	if err != nil {
 		log.Print("Could not decode parameters")
 		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
+
+	log.Print("API: Attempting to get user from Database")
 
 	dbUser, err := cfg.DB.GetUserByEmail(params.Email)
 	
@@ -48,6 +48,8 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusNotFound, err.Error())
 		return
 	}
+
+	log.Print("API: Attempting to validate password")
 
 	err = auth.CheckPasswords(params.Password, dbUser.Password)
 
@@ -58,9 +60,13 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 	
 	}
 
+	log.Println("API: Attempting to create access token")
+
 	now := time.Now()
 
 	token, err := cfg.generateUserToken(dbUser.ID, now.Add(time.Hour), "chirpy-access")
+
+	log.Println("API: Generated token (access)")
 
 	if err != nil {
 		log.Print("Unable to generate access token")
@@ -68,13 +74,24 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("API: Attempting to create refresh token")
+
 	refresh, err := cfg.generateUserToken(dbUser.ID, now.Add(time.Hour * 24 * 60), "chirpy-refresh")
 
 	if err != nil {
-		log.Print("Unable to generate refresh token")
+		log.Println("Unable to generate refresh token")
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	_, err = cfg.DB.CreateToken(refresh, dbUser.ID)
+
+	if err != nil {
+		log.Println("Could not save refresh token to db")
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	log.Println("API: Token generated (refresh)")
 	
 	respondWithJSON(w, http.StatusOK, returnParams{
 		ID: dbUser.ID,
@@ -82,24 +99,4 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 		Token: token,
 		Refresh: refresh,
 	})
-}
-
-
-func (cfg *apiConfig) generateUserToken(userid int, expiration time.Time, issuer string) (string, error) {
-
-	now := jwt.NewNumericDate(time.Now())
-	exp := jwt.NewNumericDate(expiration)
-	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Issuer: issuer,
-		IssuedAt: now,
-		ExpiresAt: exp,
-		Subject: strconv.Itoa(userid),
-	})
-	t, err := tkn.SignedString([]byte(cfg.JWTSecret))
-	if err != nil {
-		log.Print(err)
-		return "", err
-	}
-	
-	return t, nil
 }
