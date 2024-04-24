@@ -31,6 +31,14 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err = cfg.DB.GetToken(strings.TrimPrefix(auth, "Bearer "))
+
+	if err != nil {
+		log.Print("could not verify that the db token exists. access denied")
+		respondWithError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
 	token, err := cfg.generateUserToken(userid, time.Now().Add(time.Hour), "chirpy-access")
 
 	if err != nil {

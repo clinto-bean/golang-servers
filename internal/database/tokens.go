@@ -29,14 +29,14 @@ func (db *DB) CreateToken(body string, id int) (Token, error) {
 	}, nil
 }
 
-func (db *DB) GetToken(id string) (Token, error) {
+func (db *DB) GetToken(body string) (Token, error) {
 	db.mu.RLock()
 	dbStructure, err := db.loadDB()
 	db.mu.RUnlock()
 	if err != nil {
 		return Token{}, err
 	}
-	if t, ok := dbStructure.Tokens[id]; ok {
+	if t, ok := dbStructure.Tokens[body]; ok {
 		return t, nil
 	}
 	return Token{}, errors.New("DB error: token does not exist")
