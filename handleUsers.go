@@ -13,20 +13,18 @@ import (
 	"github.com/clinto-bean/golang-servers/internal/auth"
 )
 
-
-
 type User struct {
-	Email string `json:"email"`
-	ID int `json:"id"`
+	Email   string `json:"email"`
+	Premium bool   `json:"is_chirpy_red"`
+	ID      int    `json:"id"`
 }
 
 type parameters struct {
-		Email string `json:"email"`
-		Password string `json:"password"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 func (cfg *apiConfig) handleCreateUsers(w http.ResponseWriter, r *http.Request) {
-	
 
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
@@ -35,7 +33,7 @@ func (cfg *apiConfig) handleCreateUsers(w http.ResponseWriter, r *http.Request) 
 	password := params.Password
 
 	if err != nil {
-		
+
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -52,15 +50,15 @@ func (cfg *apiConfig) handleCreateUsers(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	user, err := cfg.DB.CreateUser(e, p)
+	user, err := cfg.DB.CreateUser(e, p, false)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
 
-
 	respondWithJSON(w, http.StatusCreated, User{
-		Email: user.Email,
-		ID: user.ID,
+		Email:   user.Email,
+		Premium: user.Premium,
+		ID:      user.ID,
 	})
 
 }
@@ -84,8 +82,9 @@ func (cfg *apiConfig) handlerGetAllUsers(w http.ResponseWriter, r *http.Request)
 
 	for _, user := range dbUsers {
 		users = append(users, User{
-			ID: user.ID,
-			Email: user.Email,
+			ID:      user.ID,
+			Premium: user.Premium,
+			Email:   user.Email,
 		})
 	}
 
@@ -112,16 +111,17 @@ func (cfg *apiConfig) handlerGetSingleUser(w http.ResponseWriter, r *http.Reques
 	}
 
 	respondWithJSON(w, http.StatusOK, User{
-		Email: user.Email,
-		ID: user.ID,
+		Email:   user.Email,
+		ID:      user.ID,
+		Premium: user.Premium,
 	})
 }
 
 func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
-		ID string `json:"id"`
+		ID       string `json:"id"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -149,17 +149,17 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	u, err := cfg.DB.UpdateUser(userid, params.Email, pw)
+	u, err := cfg.DB.UpdateUser(userid, params.Email, pw, false)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "error occurred while updating user")
 		return
 	}
 
-	
 	respondWithJSON(w, http.StatusOK, User{
-		Email: u.Email,
-		ID: u.ID,
+		Email:   u.Email,
+		Premium: u.Premium,
+		ID:      u.ID,
 	})
 
 }

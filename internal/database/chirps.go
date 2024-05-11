@@ -1,8 +1,11 @@
 package database
 
-import "log"
+import (
+	"errors"
+	"log"
+)
 
-func (db *DB) CreateChirp(body string) (Chirp, error) {
+func (db *DB) CreateChirp(body string, authorID int) (Chirp, error) {
 	dbStructure, err := db.loadDB()
 	if err != nil {
 		log.Print("Could not load db.")
@@ -11,14 +14,15 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 
 	id := len(dbStructure.Chirps) + 1
 	chirp := Chirp{
-		ID:   id,
-		Body: body,
+		ID:     id,
+		Body:   body,
+		Author: authorID,
 	}
 	dbStructure.Chirps[id] = chirp
 
-	db.mu.RLock()
+	db.mu.Lock()
 	err = db.writeDB(dbStructure)
-	db.mu.RUnlock()
+	db.mu.Unlock()
 
 	if err != nil {
 		log.Print("Could not write db.")
@@ -53,4 +57,25 @@ func (db *DB) GetChirp(id int) (Chirp, error) {
 		return Chirp{}, ErrNotExist
 	}
 	return chirp, nil
+}
+
+func (db *DB) DeleteChirp(id int, subject int) (int, error) {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return 500, err
+	}
+	if dbStructure.Chirps[id].Author != subject {
+		return 403, errors.New("unauthorized")
+	}
+	log.Printf("DB: Attempting to delete chirp id %v with author %v", id, subject)
+	delete(dbStructure.Chirps, id)
+	db.mu.Lock()
+	err = db.writeDB(dbStructure)
+	db.mu.Unlock()
+
+	if err != nil {
+		return 500, err
+	}
+
+	return 200, nil
 }

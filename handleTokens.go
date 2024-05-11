@@ -15,7 +15,7 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 	type returnParams struct {
 		Token string `json:"token"`
 	}
-	
+
 	auth := r.Header.Get("Authorization")
 	if auth == "" {
 		log.Println("No token found")
@@ -78,10 +78,10 @@ func (cfg *apiConfig) generateUserToken(userid int, expiration time.Time, issuer
 	now := jwt.NewNumericDate(time.Now())
 	exp := jwt.NewNumericDate(expiration)
 	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Issuer: issuer,
-		IssuedAt: now,
+		Issuer:    issuer,
+		IssuedAt:  now,
 		ExpiresAt: exp,
-		Subject: strconv.Itoa(userid),
+		Subject:   strconv.Itoa(userid),
 	})
 	t, err := tkn.SignedString([]byte(cfg.JWTSecret))
 	if err != nil {
@@ -101,10 +101,10 @@ func (cfg *apiConfig) validateToken(arg string, issuerName string) (int, error) 
 
 	tokenString := strings.TrimPrefix(arg, "Bearer ")
 
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error){
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(cfg.JWTSecret), nil
 	})
-	
+
 	if err != nil {
 		log.Printf("Error: %v\n", err.Error())
 		return 0, err
@@ -113,22 +113,21 @@ func (cfg *apiConfig) validateToken(arg string, issuerName string) (int, error) 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		issuer := claims["iss"]
 		if issuer != issuerName {
-			
+
 			return 0, errors.New("incorrect issuer")
 		}
 
 		if issuer == nil {
 			return 0, errors.New("issuer not found in token")
 		}
-		
-		
+
 		subject, ok := claims["sub"].(string)
 		if !ok {
 			return 0, errors.New("subject claim is missing or not a string")
 		}
 
 		convertedSubject, err := strconv.Atoi(subject)
-		
+
 		if err != nil {
 			log.Println("Unable to convert subject")
 			return 0, err

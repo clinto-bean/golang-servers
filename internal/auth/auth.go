@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"fmt"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -14,4 +16,8 @@ func EncryptPassword(password string) (string, error) {
 
 func CheckPasswords(password, hash string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+}
+
+func ValidateChirpAuthor(token string, chirp string) (bool, error) {
+	return false, fmt.Errorf("asdf")
 }

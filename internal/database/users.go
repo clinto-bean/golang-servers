@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-func (db *DB) CreateUser(email string, password string) (User, error) {
+func (db *DB) CreateUser(email string, password string, premium bool) (User, error) {
 	dbStructure, err := db.loadDB()
 	if err != nil {
 		log.Print("Couldn't load db while creating users")
@@ -21,9 +21,10 @@ func (db *DB) CreateUser(email string, password string) (User, error) {
 	id := len(dbStructure.Users) + 1
 
 	user := User{
-		Email: email,
-		ID: id,
+		Email:    email,
+		ID:       id,
 		Password: password,
+		Premium:  premium,
 	}
 
 	dbStructure.Users[id] = user
@@ -36,11 +37,11 @@ func (db *DB) CreateUser(email string, password string) (User, error) {
 		log.Print("Couldn't write user to db")
 		return User{}, err
 	}
-	
+
 	return user, nil
 }
 
-func (db *DB) UpdateUser(id int, email string, password string) (User, error) {
+func (db *DB) UpdateUser(id int, email string, password string, premium bool) (User, error) {
 
 	db.mu.RLock()
 	dbStructure, err := db.loadDB()
@@ -60,11 +61,11 @@ func (db *DB) UpdateUser(id int, email string, password string) (User, error) {
 	user.Email = email
 	user.Password = password
 	user.ID = id
+	user.Premium = premium
 
 	dbStructure.Users[id] = user
 
 	err = db.writeDB(dbStructure)
-	
 
 	if err != nil {
 		return User{}, errors.New("could not write database")
@@ -90,25 +91,25 @@ func (db *DB) GetUsers() ([]User, error) {
 
 func (db *DB) GetSingleUser(id int) (User, error) {
 	dbStructure, err := db.loadDB()
-		if err != nil {
-			return User{}, err
-		}
-		user, ok := dbStructure.Users[id]
-		if !ok {
-			return User{}, ErrNotExist
-		}
-		return user, nil
+	if err != nil {
+		return User{}, err
+	}
+	user, ok := dbStructure.Users[id]
+	if !ok {
+		return User{}, ErrNotExist
+	}
+	return user, nil
 }
 
 func (db *DB) GetUserByEmail(email string) (User, error) {
 	dbStructure, err := db.loadDB()
-		if err != nil {
-			return User{}, err
+	if err != nil {
+		return User{}, err
+	}
+	for _, u := range dbStructure.Users {
+		if u.Email == email {
+			return u, nil
 		}
-		for _, u := range dbStructure.Users {
-			if u.Email == email {
-				return u, nil
-			}
-		}
-		return User{}, ErrNotExist
+	}
+	return User{}, ErrNotExist
 }

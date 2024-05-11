@@ -14,17 +14,18 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 	log.Println("API: Logging in")
 
 	type parameters struct {
-		Email string `json:"email"`
-		Password string `json:"password"`
-		JWT string `json:"jwt,omitempty"`
+		Email            string `json:"email"`
+		Password         string `json:"password"`
+		JWT              string `json:"jwt,omitempty"`
 		ExpiresInSeconds *int64 `json:"expires_in_seconds,omitempty"`
 	}
-	
+
 	type returnParams struct {
-		ID int `json:"id"`
-		Email string `json:"email"`
-		Token string `json:"token"`
+		ID      int    `json:"id"`
+		Email   string `json:"email"`
+		Token   string `json:"token"`
 		Refresh string `json:"refresh_token"`
+		Premium bool   `json:"is_chirpy_red"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -42,7 +43,7 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 	log.Print("API: Attempting to get user from Database")
 
 	dbUser, err := cfg.DB.GetUserByEmail(params.Email)
-	
+
 	if err != nil {
 		log.Print("User not found")
 		respondWithError(w, http.StatusNotFound, err.Error())
@@ -57,7 +58,7 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 		log.Print("Passwords do not match!")
 		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
-	
+
 	}
 
 	log.Println("API: Attempting to create access token")
@@ -76,7 +77,7 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("API: Attempting to create refresh token")
 
-	refresh, err := cfg.generateUserToken(dbUser.ID, now.Add(time.Hour * 24 * 60), "chirpy-refresh")
+	refresh, err := cfg.generateUserToken(dbUser.ID, now.Add(time.Hour*24*60), "chirpy-refresh")
 
 	if err != nil {
 		log.Println("Unable to generate refresh token")
@@ -92,11 +93,12 @@ func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Println("API: Token generated (refresh)")
-	
+
 	respondWithJSON(w, http.StatusOK, returnParams{
-		ID: dbUser.ID,
-		Email: dbUser.Email,
-		Token: token,
+		ID:      dbUser.ID,
+		Email:   dbUser.Email,
+		Token:   token,
 		Refresh: refresh,
+		Premium: dbUser.Premium,
 	})
 }

@@ -16,24 +16,26 @@ type DB struct {
 }
 
 type DBStructure struct {
-	Chirps map[int]Chirp `json:"chirps"`
-	Users map[int]User `json:"users"`
+	Chirps map[int]Chirp    `json:"chirps"`
+	Users  map[int]User     `json:"users"`
 	Tokens map[string]Token `json:"tokens"`
 }
 
 type Chirp struct {
-	ID   int    `json:"id"`
-	Body string `json:"body"`
+	ID     int    `json:"id"`
+	Body   string `json:"body"`
+	Author int    `json:"author_id"`
 }
 
 type User struct {
-	Email string
+	Email    string
 	Password string
-	ID int
+	ID       int
+	Premium  bool
 }
 
 type Token struct {
-	ID int 
+	ID   int
 	Body string `json:"token"`
 }
 
@@ -49,7 +51,7 @@ func NewDB(path string) (*DB, error) {
 func (db *DB) createDB() error {
 	dbStructure := DBStructure{
 		Chirps: map[int]Chirp{},
-		Users: map[int]User{},
+		Users:  map[int]User{},
 		Tokens: map[string]Token{},
 	}
 
@@ -70,7 +72,7 @@ func (db *DB) ensureDB() error {
 
 func (db *DB) loadDB() (DBStructure, error) {
 	dbStructure := DBStructure{}
-	
+
 	db.mu.RLock()
 	dat, err := os.ReadFile(db.path)
 	db.mu.RUnlock()
@@ -105,6 +107,3 @@ func (db *DB) writeDB(dbStructure DBStructure) error {
 	}
 	return nil
 }
-
-
-

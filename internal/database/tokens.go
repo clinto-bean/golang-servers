@@ -25,7 +25,7 @@ func (db *DB) CreateToken(body string, id int) (Token, error) {
 	log.Println("DB: Successfully created token (refresh)")
 	return Token{
 		Body: tk.Body,
-		ID: tk.ID,
+		ID:   tk.ID,
 	}, nil
 }
 
@@ -43,31 +43,25 @@ func (db *DB) GetToken(body string) (Token, error) {
 }
 
 func (db *DB) DeleteToken(body string) error {
-	
+
 	db.mu.RLock()
 	dbStructure, err := db.loadDB()
 	db.mu.RUnlock()
 	if err != nil {
 		return err
 	}
-	if _, ok := dbStructure.Tokens[body]; ok { 
-			log.Println("DB: refresh token found. deleting.")
-			delete(dbStructure.Tokens, body)
-			db.mu.Lock()
-			defer db.mu.Unlock()
-			err = db.writeDB(dbStructure)
-			if err != nil {
-				return err
-			}
-			log.Println("DB: Successfully deleted refresh token")
-			return nil
+	if _, ok := dbStructure.Tokens[body]; ok {
+		log.Println("DB: refresh token found. deleting.")
+		delete(dbStructure.Tokens, body)
+		db.mu.Lock()
+		defer db.mu.Unlock()
+		err = db.writeDB(dbStructure)
+		if err != nil {
+			return err
 		}
+		log.Println("DB: Successfully deleted refresh token")
+		return nil
+	}
 	log.Println("DB: Refresh token was not found")
 	return errors.New("DB error: resource not found")
 }
-	
-
-	
-	
-	
-	

@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -11,8 +11,9 @@ import (
 )
 
 type Chirp struct {
-	ID   int    `json:"id"`
-	Body string `json:"body"`
+	ID     int    `json:"id"`
+	Body   string `json:"body"`
+	Author int    `json:"author_id"`
 }
 
 func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
@@ -20,8 +21,10 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 		Body string `json:"body"`
 	}
 
-	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
+
+	decoder := json.NewDecoder(r.Body)
+
 	err := decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters while creating chirp")
@@ -33,17 +36,96 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	
-	chirp, err := cfg.DB.CreateChirp(cleaned)
+
+	token := r.Header.Get("Authorization")
+	subject, err := cfg.validateToken(token, "chirpy-access")
+	if err != nil {
+		respondWithError(w, 500, "could not determine access token")
+		return
+	}
+
+	chirp, err := cfg.DB.CreateChirp(cleaned, subject)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't create chirp")
 		return
 	}
 
 	respondWithJSON(w, http.StatusCreated, Chirp{
-		ID:   chirp.ID,
-		Body: chirp.Body,
+		ID:     chirp.ID,
+		Body:   chirp.Body,
+		Author: chirp.Author,
 	})
+}
+
+func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
+	dbChirps, err := cfg.DB.GetChirps()
+	if err != nil {
+		log.Println("unable to get chirps")
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	chirps := []Chirp{}
+	for _, dbChirp := range dbChirps {
+		chirps = append(chirps, Chirp{
+			ID:     dbChirp.ID,
+			Body:   dbChirp.Body,
+			Author: dbChirp.Author,
+		})
+	}
+
+	sort.Slice(chirps, func(i, j int) bool {
+		return chirps[i].ID < chirps[j].ID
+	})
+
+	respondWithJSON(w, http.StatusOK, chirps)
+}
+
+func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Request) {
+	chirpID := r.PathValue("chirpID")
+	id, err := strconv.Atoi(chirpID)
+	if err != nil {
+		log.Println("unable to convert chirp ID")
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	chirp, err := cfg.DB.GetChirp(id)
+	if err != nil {
+		log.Println("unable to get chirp by id")
+		respondWithError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, Chirp{
+		Body:   chirp.Body,
+		ID:     chirp.ID,
+		Author: chirp.Author,
+	})
+}
+
+func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
+	chirpID := r.PathValue("chirpID")
+	id, err := strconv.Atoi(chirpID)
+	if err != nil {
+		log.Println("API: Unable to convert chirp ID")
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	token := r.Header.Get("Authorization")
+	subject, err := cfg.validateToken(token, "chirpy-access")
+
+	if err != nil {
+		log.Println("API: Could not validate token in DeleteChirp")
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	status, err := cfg.DB.DeleteChirp(id, subject)
+	if err != nil {
+		log.Println("API: Could not delete chirp")
+		respondWithError(w, status, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, "")
 }
 
 func validateChirp(body string) (string, error) {
@@ -71,47 +153,4 @@ func getCleanedBody(body string, badWords map[string]struct{}) string {
 	}
 	cleaned := strings.Join(words, " ")
 	return cleaned
-}
-
-func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
-	dbChirps, err := cfg.DB.GetChirps()
-	if err != nil {
-		fmt.Print("unable to run cfg.DB.GetChirps()")
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	chirps := []Chirp{}
-	for _, dbChirp := range dbChirps {
-		chirps = append(chirps, Chirp{
-			ID:   dbChirp.ID,
-			Body: dbChirp.Body,
-		})
-	}
-
-	sort.Slice(chirps, func(i, j int) bool {
-		return chirps[i].ID < chirps[j].ID
-	})
-
-	respondWithJSON(w, http.StatusOK, chirps)
-}
-
-func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Request) {
-	chirpID := r.PathValue("chirpID")
-	id, err := strconv.Atoi(chirpID)
-	if err != nil {
-		fmt.Print("unable to convert chirp ID")
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	chirp, err := cfg.DB.GetChirp(id)
-	if err != nil {
-		fmt.Print("unable to get chirp by id")
-		respondWithError(w, http.StatusNotFound, err.Error())
-		return
-	}
-	respondWithJSON(w, http.StatusOK, Chirp{
-				Body: chirp.Body,
-				ID: chirp.ID,
-			})
 }

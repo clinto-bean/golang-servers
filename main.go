@@ -12,8 +12,9 @@ import (
 type apiConfig struct {
 	fileserverHits int
 	DB             *db.DB
-	JWTSecret string
-	Expiration int
+	JWTSecret      string
+	Expiration     int
+	APIKey         string
 }
 
 func main() {
@@ -25,6 +26,7 @@ func main() {
 	}
 
 	jwtSecret := os.Getenv("JWT_SECRET")
+	polkaApiKey := os.Getenv("POLKA_API_KEY")
 
 	db, err := db.NewDB("database.json")
 	if err != nil {
@@ -34,8 +36,9 @@ func main() {
 	apiCfg := apiConfig{
 		fileserverHits: 0,
 		DB:             db,
-		JWTSecret: jwtSecret,
-		Expiration: 5,
+		JWTSecret:      jwtSecret,
+		Expiration:     5,
+		APIKey:         polkaApiKey,
 	}
 
 	mux := http.NewServeMux()
@@ -55,6 +58,8 @@ func main() {
 	mux.HandleFunc("PUT /api/users", apiCfg.handlerUpdateUser)
 	mux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
 	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerDeleteChirp)
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerUpgradeUser)
 
 	corsMux := middlewareCors(mux)
 
