@@ -13,7 +13,7 @@ func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
 
 <body>
 	<h1>Welcome, Chirpy Admin</h1>
-	<p>Chirpy has been visited %dtimes!</p>
+	<p>Chirpy has been visited %d times!</p>
 </body>
 
 </html>
