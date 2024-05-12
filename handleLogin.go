@@ -9,6 +9,9 @@ import (
 	"github.com/clinto-bean/golang-servers/internal/auth"
 )
 
+// handlerUserLogin processes a login request containing username, password, jwt and jwt expiration
+// jwt information is optional, username and password are required
+
 func (cfg *apiConfig) handlerUserLogin(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("API: Logging in")
