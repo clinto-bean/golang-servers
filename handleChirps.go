@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -71,19 +72,25 @@ func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request
 /* handlerGetAllChirps receives author_id as a parameter and returns all chirps for that user */
 
 func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
-	type parameters struct {
-		AuthorID int `json:"author_id"`
-	}
+	
 
-	// 1: attempt to parse author id from provided request
+	// 1: check if sorting preference is stated, and if author id is provided 
 
-	params := parameters{}
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&params)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters while fetching all chirps")
+	q, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {	
+		respondWithError(w, http.StatusBadRequest, "Bad query format")
 		return
 	}
+	sortMethod := q.Get("sort")
+	user := q.Get("author_id")
+	var authorID int
+	if user != "" {
+		authorID, err = strconv.Atoi(user)
+		if err != nil {
+			log.Print(err)
+			respondWithError(w, http.StatusBadRequest, "Author ID must be numeric")
+			return
+	}}
 
 	// 2: attempt to retrieve all chirps from database
 
@@ -98,7 +105,7 @@ func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request
 
 	chirps := []Chirp{}
 	for _, dbChirp := range dbChirps {
-		if dbChirp.Author == params.AuthorID {
+		if dbChirp.Author == authorID + 1 {
 			chirps = append(chirps, Chirp{
 			ID:     dbChirp.ID,
 			Body:   dbChirp.Body,
@@ -109,13 +116,16 @@ func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request
 	// 4: if no matching chirps, successfully respond stating no chirps found
 
 	if len(chirps) < 1 {
-		respondWithJSON(w, http.StatusOK, fmt.Sprintf("No chirps found for author $%v", params.AuthorID))
+		respondWithJSON(w, http.StatusOK, fmt.Sprintf("No chirps found for author $%v", authorID))
 		return
 	}
 
 	// 5: sort chirps by ID if matches were found
 
 	sort.Slice(chirps, func(i, j int) bool {
+		if sortMethod == "desc" {
+			return chirps[i].ID > chirps[j].ID
+		}
 		return chirps[i].ID < chirps[j].ID
 	})
 
